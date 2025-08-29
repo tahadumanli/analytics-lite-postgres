@@ -1,0 +1,23 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets / env
+.env
+*.env
+
+# Logs
+*.log
+
+# DB dumps and local exports
+dumps/
+*.dump
+*.backup
+*.sql.gz
+*.tar
+
+# Python cache
+__pycache__/
+*.pyc
