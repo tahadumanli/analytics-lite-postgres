@@ -1,0 +1,44 @@
+WITH signups AS (
+  SELECT user_id, MIN(event_time)::date AS signup_date
+  FROM events
+  WHERE event_name = 'signup'
+  GROUP BY user_id
+),
+activity AS (
+  SELECT user_id, event_time::date AS act_date
+  FROM events
+),
+joined AS (
+  SELECT s.user_id, s.signup_date, a.act_date,
+         a.act_date - s.signup_date AS day_offset
+  FROM signups s
+  JOIN activity a ON a.user_id = s.user_id
+  WHERE a.act_date > s.signup_date
+),
+dedup AS (
+  SELECT DISTINCT user_id, signup_date, day_offset
+  FROM joined
+  WHERE day_offset IN (1,7,14)
+),
+retained AS (
+  SELECT
+    signup_date,
+    COUNT(DISTINCT user_id) FILTER (WHERE day_offset = 1)  AS day1_retained,
+    COUNT(DISTINCT user_id) FILTER (WHERE day_offset = 7)  AS day7_retained,
+    COUNT(DISTINCT user_id) FILTER (WHERE day_offset = 14) AS day14_retained
+  FROM dedup
+  GROUP BY signup_date
+)
+SELECT
+  s.signup_date,
+  COUNT(s.user_id) AS cohort_size,
+  COALESCE(r.day1_retained,0)  AS day1_users,
+  ROUND(100.0 * COALESCE(r.day1_retained,0) / COUNT(s.user_id),1)  AS day1_pct,
+  COALESCE(r.day7_retained,0)  AS day7_users,
+  ROUND(100.0 * COALESCE(r.day7_retained,0) / COUNT(s.user_id),1)  AS day7_pct,
+  COALESCE(r.day14_retained,0) AS day14_users,
+  ROUND(100.0 * COALESCE(r.day14_retained,0) / COUNT(s.user_id),1) AS day14_pct
+FROM signups s
+LEFT JOIN retained r USING (signup_date)
+GROUP BY s.signup_date, r.day1_retained, r.day7_retained, r.day14_retained
+ORDER BY s.signup_date;
